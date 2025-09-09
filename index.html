@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เครื่องคำนวณ LBM, BMR และ TDEE เฉลี่ย</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 550px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #e8f5e9;
+            border-radius: 10px;
+            border-left: 6px solid #4CAF50;
+            text-align: left;
+            display: none;
+            transition: opacity 0.5s ease;
+        }
+        .result p {
+            margin: 10px 0;
+            color: #333;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .result p span {
+            color: #1e8449;
+            font-weight: normal;
+        }
+        .error-message {
+            color: #e74c3c;
+            margin-top: 15px;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>เครื่องคำนวณ LBM, BMR, และ TDEE เฉลี่ย</h1>
+        <div class="input-group">
+            <label for="gender">เพศ</label>
+            <select id="gender">
+                <option value="male" selected>ชาย</option>
+                <option value="female">หญิง</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label for="weight">น้ำหนัก (กิโลกรัม)</label>
+            <input type="number" id="weight" placeholder="เช่น 70" step="0.1" value="75.6">
+        </div>
+        <div class="input-group">
+            <label for="height">ส่วนสูง (เซนติเมตร)</label>
+            <input type="number" id="height" placeholder="เช่น 175" step="0.1" value="175">
+        </div>
+        <div class="input-group">
+            <label for="age">อายุ (ปี)</label>
+            <input type="number" id="age" placeholder="เช่น 30" value="28">
+        </div>
+        <div class="input-group">
+            <label for="bodyFat">เปอร์เซ็นต์ไขมันในร่างกาย (%)</label>
+            <input type="number" id="bodyFat" placeholder="เช่น 20" step="0.1" value="20">
+        </div>
+        <div class="input-group">
+            <label for="activityLevel">ระดับกิจกรรม (สำหรับวันที่ออกกำลังกาย)</label>
+            <select id="activityLevel">
+                <option value="1.375">ออกกำลังกายเบาๆ (1-3 วัน/สัปดาห์)</option>
+                <option value="1.55" selected>ออกกำลังกายปานกลาง (3-5 วัน/สัปดาห์)</option>
+                <option value="1.725">ออกกำลังกายหนัก (6-7 วัน/สัปดาห์)</option>
+                <option value="1.9">ออกกำลังกายหนักมาก (2 ครั้ง/วัน, หรือฝึกซ้อมหนัก)</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label for="exerciseDays">จำนวนวันที่ออกกำลังกาย</label>
+            <input type="number" id="exerciseDays" placeholder="เช่น 3" min="0" value="3">
+        </div>
+        <div class="input-group">
+            <label for="restDays">จำนวนวันที่ไม่ออกกำลังกาย</label>
+            <input type="number" id="restDays" placeholder="เช่น 1" min="0" value="1">
+        </div>
+        <button onclick="calculate()">คำนวณ</button>
+
+        <p id="errorMessage" class="error-message">กรุณากรอกข้อมูลให้ครบถ้วนและตรวจสอบจำนวนวันว่าถูกต้อง</p>
+
+        <div id="result" class="result">
+            <p><strong>LBM (Lean Body Mass):</strong> <span id="lbmResult"></span> kg</p>
+            <hr>
+            <p><strong>BMR Original Weight (Basal Metabolic Rate):</strong> <span id="bmrOriginalWeightResult"></span> kcal/วัน</p>
+            <p><strong>TDEE Original Weight (วันที่ออกกำลังกาย):</strong> <span id="tdeeExerciseOriginalWeightResult"></span> kcal/วัน</p>
+            <p><strong>TDEE Original Weight (วันที่ไม่ออกกำลังกาย):</strong> <span id="tdeeRestOriginalWeightResult"></span> kcal/วัน</p>
+            <p><strong>TDEE Original Weight เฉลี่ยต่อวัน:</strong> <span id="avgTdeeOriginalWeightResult"></span> kcal</p>
+            <hr>
+            <p><strong>BMR LBM Weight (Basal Metabolic Rate):</strong> <span id="bmrLbmWeightResult"></span> kcal/วัน</p>
+            <p><strong>TDEE LBM Weight (วันที่ออกกำลังกาย):</strong> <span id="tdeeExerciseLbmWeightResult"></span> kcal/วัน</p>
+            <p><strong>TDEE LBM Weight (วันที่ไม่ออกกำลังกาย):</strong> <span id="tdeeRestLbmWeightResult"></span> kcal/วัน</p>
+            <p><strong>TDEE LBM Weight เฉลี่ยต่อวัน:</strong> <span id="avgTdeeLbmWeightResult"></span> kcal</p>
+        </div>
+    </div>
+
+    <script>
+        function calculate() {
+            // Pre-filled values from user's data
+            const gender = document.getElementById('gender').value;
+            const weight = parseFloat(document.getElementById('weight').value);
+            const height = parseFloat(document.getElementById('height').value);
+            const age = parseInt(document.getElementById('age').value);
+            const bodyFat = parseFloat(document.getElementById('bodyFat').value);
+            const activityLevel = parseFloat(document.getElementById('activityLevel').value);
+            const exerciseDays = parseInt(document.getElementById('exerciseDays').value);
+            const restDays = parseInt(document.getElementById('restDays').value);
+            
+            const totalDays = exerciseDays + restDays;
+            
+            const resultDiv = document.getElementById('result');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Check if all fields are filled and total days are not zero
+            if (isNaN(weight) || isNaN(height) || isNaN(age) || isNaN(exerciseDays) || isNaN(restDays) || totalDays === 0) {
+                resultDiv.style.display = 'none';
+                errorMessage.textContent = 'กรุณากรอกข้อมูลให้ครบถ้วน และตรวจสอบว่าจำนวนวันรวมไม่เป็นศูนย์';
+                errorMessage.style.display = 'block';
+                return;
+            } else {
+                errorMessage.style.display = 'none';
+            }
+
+            // Calculate LBM (Lean Body Mass)
+            const lbm = weight * (1 - (bodyFat / 100));
+
+            // Calculate BMR (Basal Metabolic Rate) using Mifflin-St Jeor formula
+            let bmrOriginalWeight, bmrLbmWeight;
+            if (gender === 'male') {
+                bmrOriginalWeight = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+                bmrLbmWeight = 370 + (21.6 * lbm);
+            } else {
+                bmrOriginalWeight = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+                bmrLbmWeight = 370 + (21.6 * lbm);
+            }
+
+            // Calculate TDEE for exercise days
+            const tdeeExerciseOriginalWeight = bmrOriginalWeight * activityLevel;
+            const tdeeExerciseLbmWeight = bmrLbmWeight * activityLevel;
+
+            // Calculate TDEE for rest days (using a sedentary multiplier of 1.2)
+            const tdeeRestOriginalWeight = bmrOriginalWeight * 1.2;
+            const tdeeRestLbmWeight = bmrLbmWeight * 1.2;
+
+            // Calculate average TDEE over the total number of days
+            const avgTdeeOriginalWeight = ((tdeeExerciseOriginalWeight * exerciseDays) + (tdeeRestOriginalWeight * restDays)) / totalDays;
+            const avgTdeeLbmWeight = ((tdeeExerciseLbmWeight * exerciseDays) + (tdeeRestLbmWeight * restDays)) / totalDays;
+
+            // Display results
+            document.getElementById('lbmResult').textContent = lbm.toFixed(2);
+            document.getElementById('bmrOriginalWeightResult').textContent = bmrOriginalWeight.toFixed(2);
+            document.getElementById('bmrLbmWeightResult').textContent = bmrLbmWeight.toFixed(2);
+            document.getElementById('tdeeExerciseOriginalWeightResult').textContent = tdeeExerciseOriginalWeight.toFixed(2);
+            document.getElementById('tdeeExerciseLbmWeightResult').textContent = tdeeExerciseLbmWeight.toFixed(2);
+            document.getElementById('tdeeRestOriginalWeightResult').textContent = tdeeRestOriginalWeight.toFixed(2);
+            document.getElementById('tdeeRestLbmWeightResult').textContent = tdeeRestLbmWeight.toFixed(2);
+            document.getElementById('avgTdeeOriginalWeightResult').textContent = avgTdeeOriginalWeight.toFixed(2);
+            document.getElementById('avgTdeeLbmWeightResult').textContent = avgTdeeLbmWeight.toFixed(2);
+
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
